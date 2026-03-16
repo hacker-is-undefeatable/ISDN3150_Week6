@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Dict, List
 import base64
-import time
-from html import escape
+import json
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 st.set_page_config(
@@ -75,25 +75,29 @@ def inject_page_style() -> None:
     st.markdown(
         """
         <style>
+            header[data-testid="stHeader"] {
+                display: none;
+            }
+            [data-testid="stToolbar"] {
+                display: none;
+            }
             [data-testid="stSidebar"], [data-testid="collapsedControl"] {
                 display: none;
             }
+            @media (min-width: calc(736px + 8rem)) {
+                .st-emotion-cache-zy6yx3 {
+                    padding-left: 0rem;
+                    padding-right: 0rem;
+                    padding: 0rem 0rem 0rem 0rem
+                }
+            }
             .main .block-container {
                 max-width: 100%;
-                padding-top: 1.2rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
-                padding-bottom: 5.5rem;
-            }
-            .scene-title {
-                margin-top: 0.3rem;
-                margin-bottom: 0.6rem;
-                font-size: 1.35rem;
-                font-weight: 600;
             }
             .scene-image-wrap {
+                position: relative;
                 width: 100%;
-                height: 78vh;
+                height: 90vh;
                 border-radius: 18px;
                 overflow: hidden;
                 box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
@@ -106,18 +110,18 @@ def inject_page_style() -> None:
                 display: block;
             }
             .scene-caption {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
+                position: absolute;
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
                 margin: 0;
                 padding: 1rem 1.2rem;
-                background: linear-gradient(0deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 100%);
+                background: rgba(0, 0, 0, 0.5);
                 color: #f8f8f8;
                 font-size: 1.04rem;
                 line-height: 1.6;
-                z-index: 999;
-                border-top: 1px solid rgba(255, 255, 255, 0.2);
+                z-index: 5;
+                border-radius: 16px;
             }
         </style>
         """,
@@ -133,30 +137,68 @@ def image_to_data_uri(local_image: Path) -> str:
     return f"data:image/{suffix};base64,{b64_data}"
 
 
-def render_fullscreen_image(local_image: Path) -> None:
+def render_scene_with_typewriter(local_image: Path, text: str, speed_ms: int) -> None:
     image_uri = image_to_data_uri(local_image)
-    st.markdown(
-        f"""
+    text_js = json.dumps(text)
+    scene_html = f"""
+        <style>
+            .scene-image-wrap {{
+                position: relative;
+                width: 100%;
+                height: 90vh;
+                border-radius: 18px;
+                overflow: hidden;
+                box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+                background: #111;
+            }}
+            .scene-image-wrap img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }}
+            .scene-caption {{
+                position: absolute;
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+                margin: 0;
+                padding: 1rem 1.2rem;
+                background: rgba(0, 0, 0, 0.5);
+                color: #f8f8f8;
+                font-size: 1.04rem;
+                line-height: 1.6;
+                z-index: 5;
+                border-radius: 16px;
+                min-height: 3.2rem;
+                white-space: pre-wrap;
+            }}
+        </style>
         <div class="scene-image-wrap">
             <img src="{image_uri}" alt="story scene" />
+            <div class="scene-caption" id="scene-caption"></div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        <script>
+            const fullText = {text_js};
+            const target = document.getElementById("scene-caption");
+            let i = 0;
+            const timer = setInterval(() => {{
+                target.textContent = fullText.slice(0, i);
+                i += 1;
+                if (i > fullText.length) {{
+                    clearInterval(timer);
+                }}
+            }}, {speed_ms});
+        </script>
+    """
+    components.html(
+        scene_html,
+        height=760,
+        scrolling=False,
     )
 
 
-def render_typewriter_caption(text: str, speed_seconds: float) -> None:
-    caption_placeholder = st.empty()
-    for idx in range(1, len(text) + 1):
-        current_text = escape(text[:idx])
-        caption_placeholder.markdown(
-            f"<div class='scene-caption'>{current_text}</div>",
-            unsafe_allow_html=True,
-        )
-        time.sleep(speed_seconds)
-
-
-typing_speed = 0.03
+typing_speed_ms = 12
 total_scenes = len(SCENES)
 
 if "scene_number" not in st.session_state:
@@ -180,7 +222,7 @@ with nav_prev_col:
         on_click=go_previous,
     )
 with nav_mid_col:
-    st.markdown("<div style='text-align:center; font-weight:600;'>Scene Navigation</div>", unsafe_allow_html=True)
+    st.empty()
 with nav_next_col:
     st.button(
         "Next",
@@ -194,12 +236,8 @@ inject_page_style()
 current_scene = SCENES[st.session_state.scene_number - 1]
 scene_number = st.session_state.scene_number
 
-st.markdown(f"<div class='scene-title'>{current_scene['title']}</div>", unsafe_allow_html=True)
-
 current_image = image_path(current_scene["image"])
 if current_image.exists():
-    render_fullscreen_image(current_image)
+    render_scene_with_typewriter(current_image, current_scene["description"], typing_speed_ms)
 else:
     st.warning(f"Image not found: {current_scene['image']}")
-
-render_typewriter_caption(current_scene["description"], typing_speed)
