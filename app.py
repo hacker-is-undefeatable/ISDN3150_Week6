@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Dict, List
 import base64
-import time
-from html import escape
+import json
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 st.set_page_config(
@@ -81,6 +81,9 @@ def inject_page_style() -> None:
             [data-testid="stToolbar"] {
                 display: none;
             }
+            footer, [data-testid="stStatusWidget"] {
+                display: none;
+            }
             [data-testid="stSidebar"], [data-testid="collapsedControl"] {
                 display: none;
             }
@@ -97,7 +100,8 @@ def inject_page_style() -> None:
             .scene-image-wrap {
                 position: relative;
                 width: 100%;
-                height: 90vh;
+                aspect-ratio: 16 / 9;
+                height: auto;
                 border-radius: 18px;
                 overflow: hidden;
                 box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
@@ -106,7 +110,7 @@ def inject_page_style() -> None:
             .scene-image-wrap img {
                 width: 100%;
                 height: 100%;
-                object-fit: cover;
+                object-fit: contain;
                 display: block;
             }
             .scene-caption {
@@ -137,24 +141,70 @@ def image_to_data_uri(local_image: Path) -> str:
     return f"data:image/{suffix};base64,{b64_data}"
 
 
-def render_scene_with_typewriter(local_image: Path, text: str, speed_seconds: float) -> None:
+def render_scene_with_typewriter(local_image: Path, text: str, speed_ms: int) -> None:
     image_uri = image_to_data_uri(local_image)
-    scene_placeholder = st.empty()
-    for idx in range(1, len(text) + 1):
-        current_text = escape(text[:idx])
-        scene_placeholder.markdown(
-            f"""
+    text_js = json.dumps(text)
+    scene_html = f"""
+            <style>
+                html, body {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                .scene-image-wrap {{
+                    position: relative;
+                    width: 100%;
+                    aspect-ratio: 16 / 9;
+                    height: auto;
+                    border-radius: 18px;
+                    overflow: hidden;
+                    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+                    background: #111;
+                }}
+                .scene-image-wrap img {{
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    display: block;
+                }}
+                .scene-caption {{
+                    position: absolute;
+                    left: 1rem;
+                    right: 1rem;
+                    bottom: 1rem;
+                    margin: 0;
+                    padding: 1rem 1.2rem;
+                    background: rgba(0, 0, 0, 0.5);
+                    color: #f8f8f8;
+                    font-size: 1.04rem;
+                    line-height: 1.6;
+                    z-index: 5;
+                    border-radius: 16px;
+                    min-height: 3.2rem;
+                    white-space: pre-wrap;
+                    font-family: "Source Sans Pro", sans-serif;
+                }}
+            </style>
             <div class="scene-image-wrap">
                 <img src="{image_uri}" alt="story scene" />
-                <div class="scene-caption">{current_text}</div>
+                <div class="scene-caption" id="scene-caption"></div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        time.sleep(speed_seconds)
+            <script>
+                const fullText = {text_js};
+                const target = document.getElementById("scene-caption");
+                let i = 0;
+                const timer = setInterval(() => {{
+                    target.textContent = fullText.slice(0, i);
+                    i += 1;
+                    if (i > fullText.length) {{
+                        clearInterval(timer);
+                    }}
+                }}, {speed_ms});
+            </script>
+    """
+    components.html(scene_html, height=1600, scrolling=False)
 
 
-typing_speed = 0.0003
+typing_speed_ms = 8
 total_scenes = len(SCENES)
 
 if "scene_number" not in st.session_state:
@@ -194,6 +244,6 @@ scene_number = st.session_state.scene_number
 
 current_image = image_path(current_scene["image"])
 if current_image.exists():
-    render_scene_with_typewriter(current_image, current_scene["description"], typing_speed)
+    render_scene_with_typewriter(current_image, current_scene["description"], typing_speed_ms)
 else:
     st.warning(f"Image not found: {current_scene['image']}")
