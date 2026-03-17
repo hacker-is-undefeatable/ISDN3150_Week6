@@ -1,10 +1,8 @@
 from pathlib import Path
-from typing import Dict, List
 import base64
-import json
+import time
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 st.set_page_config(
@@ -15,60 +13,90 @@ st.set_page_config(
 )
 
 
-SCENES: List[Dict[str, str]] = [
-    {
-        "title": "Scene 1: Discovering the stray cat in the park",
-        "image": "scene1.png",
-        "description": (
-            "On the way back from class, a university student notices a lonely orange cat near a park bench. "
-            "The cat looks tired and scared, with no collar or owner in sight."
-        ),
-    },
-    {
-        "title": "Scene 2: Feeding the cat and gaining its trust",
-        "image": "scene2.png",
-        "description": (
-            "The student buys cat food from a nearby convenience store and places it gently on the ground. "
-            "After a few cautious moments, the cat comes closer and begins to trust the student."
-        ),
-    },
-    {
-        "title": "Scene 3: Searching around town for the owner",
-        "image": "scene3.png",
-        "description": (
-            "With the cat following nearby, the student visits local streets and shops asking if anyone recognizes it. "
-            "People offer clues, but no one knows exactly where the cat belongs."
-        ),
-    },
-    {
-        "title": "Scene 4: Putting up lost cat posters",
-        "image": "scene4.png",
-        "description": (
-            "The student prints simple lost cat posters and hangs them on lamp posts and community boards. "
-            "By evening, the message spreads across the neighborhood."
-        ),
-    },
-    {
-        "title": "Scene 5: Reuniting the cat with its owner",
-        "image": "scene5.png",
-        "description": (
-            "An elderly woman sees a poster and contacts the student. "
-            "When they meet, the orange cat runs toward her immediately, and they are joyfully reunited."
-        ),
-    },
-    {
-        "title": "Scene 6: Walking home at sunset",
-        "image": "scene6.png",
-        "description": (
-            "After saying goodbye, the student walks home under a warm sunset sky. "
-            "Feeling grateful and happy, they reflect on the kindness of helping someone in need."
-        ),
-    },
-]
+SCENE_IMAGES = {
+    1: "1.jpeg",
+    2: "2.jpeg",
+    3: "3.jpeg",
+    4: "4.jpeg",
+    5: "5.jpeg",
+    6: "6.jpeg",
+    7: "7.jpeg",
+    8: "8.jpeg",
+    9: "9.jpeg",
+}
+
+NEXT_SCENE = {
+    1: 2,
+    2: 3,
+    4: 5,
+    6: 7,
+    8: 9,
+}
+
+PREV_SCENE = {
+    2: 1,
+    3: 2,
+    4: 3,
+    5: 4,
+    6: 3,
+    7: 6,
+    8: 3,
+    9: 8,
+}
+
+ENDING_SCENES = {5, 7, 9}
+
+NARRATIONS = {
+    1: [
+        "The afternoon was quiet, the kind of quiet that makes small things stand out.",
+        "Under the bench, a pair of cautious eyes watched her every move.",
+        "She had not planned to stop... but something about the little cat made her stay.",
+    ],
+    2: [
+        "She gently placed the food down, careful not to scare it away.",
+        "The cat hesitated, as if deciding whether to trust her.",
+        "Moments later, it took a small step forward - and then another.",
+    ],
+    3: [
+        "Now that it was no longer alone, the question became hers to answer.",
+        "She looked at the cat, wondering where it truly belonged.",
+        "Helping it meant making a choice... and every choice felt important.",
+    ],
+    4: [
+        "She decided to search for its owner the old-fashioned way.",
+        "Each poster carried a small hope - that someone, somewhere, was looking for this cat.",
+        "The wind brushed against the paper, as if carrying her message through the streets.",
+    ],
+    5: [
+        "At last, someone recognized the cat.",
+        "The moment they reunited, everything felt right again.",
+        "She smiled quietly, knowing she had helped something find its way home.",
+    ],
+    6: [
+        "Maybe someone nearby had seen this cat before.",
+        "She asked around, one person at a time, holding onto a quiet hope.",
+        "Sometimes, help comes not from plans... but from people.",
+    ],
+    7: [
+        "Kindness spreads faster than we think.",
+        "With a few conversations, the missing piece finally appeared.",
+        "Sometimes, it takes a community to bring a story to its ending.",
+    ],
+    8: [
+        "For now, she chose to give it a safe place.",
+        "The small room felt warmer with the cat inside.",
+        "It was not a permanent answer... but it was enough for today.",
+    ],
+    9: [
+        "Days passed, and the cat never left her side.",
+        "Some bonds are not planned - they simply grow.",
+        "Maybe... this was where it was meant to be all along.",
+    ],
+}
 
 
 def image_path(filename: str) -> Path:
-    return Path(__file__).parent / "assets" / "images" / filename
+    return Path(__file__).parent / "images_25_6x16" / filename
 
 
 def inject_page_style() -> None:
@@ -94,38 +122,152 @@ def inject_page_style() -> None:
                     padding: 0rem 0rem 0rem 0rem
                 }
             }
+            .st-emotion-cache-tn0cau {
+                gap: 0rem !important;
+            }
             .main .block-container {
                 max-width: 100%;
+                padding-top: 0 !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
             }
             .scene-image-wrap {
                 position: relative;
                 width: 100%;
-                aspect-ratio: 16 / 9;
-                height: auto;
-                border-radius: 18px;
+                min-height: 100vh;
+                border-radius: 0;
                 overflow: hidden;
-                box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
                 background: #111;
             }
             .scene-image-wrap img {
                 width: 100%;
                 height: 100%;
-                object-fit: contain;
+                object-fit: cover;
                 display: block;
             }
-            .scene-caption {
+            .scene-click-area {
                 position: absolute;
-                left: 1rem;
-                right: 1rem;
-                bottom: 1rem;
-                margin: 0;
-                padding: 1rem 1.2rem;
-                background: rgba(0, 0, 0, 0.5);
-                color: #f8f8f8;
-                font-size: 1.04rem;
-                line-height: 1.6;
+                inset: 0;
+                display: block;
+                z-index: 3;
+                text-decoration: none;
+                color: transparent;
+            }
+            .center-choice-panel {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: min(500px, 85vw);
+                z-index: 4;
+            }
+            .scene3-choice-panel {
+                position: absolute;
+                top: 50%;
+                right: 4%;
+                transform: translateY(-50%);
+                width: min(280px, 34vw);
                 z-index: 5;
-                border-radius: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .choice-title {
+                color: white;
+                text-align: center;
+                font-size: 1.4rem;
+                margin-bottom: 1rem;
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+            }
+            .scene3-choice-btn {
+                text-decoration: none;
+                text-align: center;
+                color: #1f2937;
+                font-weight: 600;
+                font-size: 15px;
+                background: linear-gradient(145deg, #d1d9e6, #ffffff);
+                border-radius: 12px;
+                box-shadow: 6px 6px 12px #b8c1cc, -6px -6px 12px #ffffff;
+                border: none;
+                padding: 10px 16px;
+                display: block;
+            }
+            .scene3-choice-btn:hover {
+                box-shadow: inset 4px 4px 8px #b8c1cc, inset -4px -4px 8px #ffffff;
+            }
+            .scene3-choice-btn:active {
+                transform: translateY(2px);
+                box-shadow: inset 6px 6px 10px #b8c1cc, inset -6px -6px 10px #ffffff;
+            }
+            .end-overlay {
+                position: absolute;
+                left: 50%;
+                bottom: 2rem;
+                transform: translateX(-50%);
+                z-index: 4;
+                padding: 0.7rem 1.2rem;
+                border-radius: 999px;
+                background: rgba(0, 0, 0, 0.45);
+                color: #fff;
+                font-weight: 600;
+            }
+            .back-button {
+                position: fixed;
+                top: 12px;
+                left: 12px;
+                width: 34px;
+                height: 34px;
+                border-radius: 10px;
+                z-index: 40;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                font-weight: 700;
+                color: #1f2937;
+                background: linear-gradient(145deg, #d1d9e6, #ffffff);
+                box-shadow: 4px 4px 8px #b8c1cc, -4px -4px 8px #ffffff;
+            }
+            .back-button:hover {
+                box-shadow: inset 3px 3px 6px #b8c1cc, inset -3px -3px 6px #ffffff;
+            }
+            .back-button:active {
+                transform: translateY(1px);
+            }
+            .narration-box {
+                position: fixed;
+                left: 4%;
+                right: 4%;
+                bottom: 16px;
+                z-index: 35;
+                background: rgba(0, 0, 0, 0.5);
+                color: #ffffff;
+                border-radius: 14px;
+                padding: 16px 20px;
+                min-height: 108px;
+                font-size: 24px;
+                line-height: 1.35;
+                pointer-events: none;
+                white-space: pre-wrap;
+            }
+
+            div.stButton > button {
+                background: linear-gradient(145deg, #d1d9e6, #ffffff);
+                border-radius: 12px;
+                box-shadow: 6px 6px 12px #b8c1cc, -6px -6px 12px #ffffff;
+                border: none;
+                padding: 12px 24px;
+                font-size: 16px;
+                transition: all 0.2s ease-in-out;
+                width: 100%;
+            }
+            div.stButton > button:hover {
+                box-shadow: inset 4px 4px 8px #b8c1cc, inset -4px -4px 8px #ffffff;
+            }
+            div.stButton > button:active {
+                transform: translateY(2px);
+                box-shadow: inset 6px 6px 10px #b8c1cc, inset -6px -6px 10px #ffffff;
             }
         </style>
         """,
@@ -141,109 +283,142 @@ def image_to_data_uri(local_image: Path) -> str:
     return f"data:image/{suffix};base64,{b64_data}"
 
 
-def render_scene_with_typewriter(local_image: Path, text: str, speed_ms: int) -> None:
+def set_scene(scene_id: int) -> None:
+    st.session_state.scene = scene_id
+    st.query_params["scene"] = str(scene_id)
+
+
+def render_click_scene(scene_id: int, next_scene_id: int) -> None:
+    local_image = image_path(SCENE_IMAGES[scene_id])
+    if not local_image.exists():
+        st.warning(f"Image not found: {SCENE_IMAGES[scene_id]}")
+        return
+
     image_uri = image_to_data_uri(local_image)
-    text_js = json.dumps(text)
-    scene_html = f"""
-            <style>
-                html, body {{
-                    margin: 0;
-                    padding: 0;
-                }}
-                .scene-image-wrap {{
-                    position: relative;
-                    width: 100%;
-                    aspect-ratio: 16 / 9;
-                    height: auto;
-                    border-radius: 18px;
-                    overflow: hidden;
-                    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
-                    background: #111;
-                }}
-                .scene-image-wrap img {{
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
-                    display: block;
-                }}
-                .scene-caption {{
-                    position: absolute;
-                    left: 1rem;
-                    right: 1rem;
-                    bottom: 1rem;
-                    margin: 0;
-                    padding: 1rem 1.2rem;
-                    background: rgba(0, 0, 0, 0.5);
-                    color: #f8f8f8;
-                    font-size: 1.04rem;
-                    line-height: 1.6;
-                    z-index: 5;
-                    border-radius: 16px;
-                    min-height: 3.2rem;
-                    white-space: pre-wrap;
-                    font-family: "Source Sans Pro", sans-serif;
-                }}
-            </style>
-            <div class="scene-image-wrap">
-                <img src="{image_uri}" alt="story scene" />
-                <div class="scene-caption" id="scene-caption"></div>
-            </div>
-            <script>
-                const fullText = {text_js};
-                const target = document.getElementById("scene-caption");
-                let i = 0;
-                const timer = setInterval(() => {{
-                    target.textContent = fullText.slice(0, i);
-                    i += 1;
-                    if (i > fullText.length) {{
-                        clearInterval(timer);
-                    }}
-                }}, {speed_ms});
-            </script>
-    """
-    components.html(scene_html, height=1600, scrolling=False)
-
-
-typing_speed_ms = 8
-total_scenes = len(SCENES)
-
-if "scene_number" not in st.session_state:
-    st.session_state.scene_number = 1
-
-
-def go_previous() -> None:
-    st.session_state.scene_number = max(1, st.session_state.scene_number - 1)
-
-
-def go_next() -> None:
-    st.session_state.scene_number = min(total_scenes, st.session_state.scene_number + 1)
-
-
-nav_prev_col, nav_mid_col, nav_next_col = st.columns([1, 2, 1])
-with nav_prev_col:
-    st.button(
-        "Previous",
-        use_container_width=True,
-        disabled=st.session_state.scene_number <= 1,
-        on_click=go_previous,
+    st.markdown(
+        f"""
+        <div class="scene-image-wrap">
+            <img src="{image_uri}" alt="Scene {scene_id}" />
+            <a
+                class="scene-click-area"
+                href="?scene={next_scene_id}"
+                target="_self"
+                rel="noopener noreferrer"
+                aria-label="Go to scene {next_scene_id}"
+            > </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-with nav_mid_col:
-    st.empty()
-with nav_next_col:
-    st.button(
-        "Next",
-        use_container_width=True,
-        disabled=st.session_state.scene_number >= total_scenes,
-        on_click=go_next,
+
+
+def render_static_scene(scene_id: int) -> None:
+    local_image = image_path(SCENE_IMAGES[scene_id])
+    if not local_image.exists():
+        st.warning(f"Image not found: {SCENE_IMAGES[scene_id]}")
+        return
+
+    image_uri = image_to_data_uri(local_image)
+    st.markdown(
+        f"""
+        <div class="scene-image-wrap">
+            <img src="{image_uri}" alt="Scene {scene_id}" />
+            <div class="end-overlay">The End</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
+    if st.button("Restart story", key=f"restart_{scene_id}"):
+        set_scene(1)
+        st.rerun()
+
+
+def render_back_button(scene_id: int) -> None:
+    prev_scene_id = PREV_SCENE.get(scene_id)
+    if prev_scene_id is None:
+        return
+
+    st.markdown(
+        f'<a class="back-button" href="?scene={prev_scene_id}" target="_self" aria-label="Back">&#9664;</a>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_narration(scene_id: int, char_delay: float = 0.02, line_delay: float = 0.55) -> None:
+    lines = NARRATIONS.get(scene_id, [])
+    if not lines:
+        return
+
+    placeholder = st.empty()
+    completed_lines = []
+
+    for line in lines:
+        current = ""
+        for char in line:
+            current += char
+            content = "\n\n".join(completed_lines + [current])
+            placeholder.markdown(
+                f'<div class="narration-box">{content}</div>',
+                unsafe_allow_html=True,
+            )
+            time.sleep(char_delay)
+
+        completed_lines.append(line)
+        content = "\n\n".join(completed_lines)
+        placeholder.markdown(
+            f'<div class="narration-box">{content}</div>',
+            unsafe_allow_html=True,
+        )
+        time.sleep(line_delay)
 
 inject_page_style()
 
-current_scene = SCENES[st.session_state.scene_number - 1]
-scene_number = st.session_state.scene_number
+query_scene = st.query_params.get("scene", "1")
+try:
+    query_scene_int = int(query_scene)
+except (TypeError, ValueError):
+    query_scene_int = 1
 
-current_image = image_path(current_scene["image"])
-if current_image.exists():
-    render_scene_with_typewriter(current_image, current_scene["description"], typing_speed_ms)
+if "scene" not in st.session_state:
+    st.session_state.scene = query_scene_int
 else:
-    st.warning(f"Image not found: {current_scene['image']}")
+    st.session_state.scene = query_scene_int
+
+current_scene = st.session_state.scene
+
+render_back_button(current_scene)
+
+if current_scene not in SCENE_IMAGES:
+    set_scene(1)
+    st.rerun()
+
+if current_scene in NEXT_SCENE:
+    render_click_scene(current_scene, NEXT_SCENE[current_scene])
+    render_narration(current_scene)
+elif current_scene == 3:
+    local_image = image_path(SCENE_IMAGES[3])
+    if local_image.exists():
+        image_uri = image_to_data_uri(local_image)
+        st.markdown(
+            f"""
+            <div class="scene-image-wrap">
+                <img src="{image_uri}" alt="Scene 3" />
+                <div class="scene3-choice-panel">
+                    <div class="choice-title">Choose your result</div>
+                    <a class="scene3-choice-btn" href="?scene=4" target="_self">Posters</a>
+                    <a class="scene3-choice-btn" href="?scene=6" target="_self">Asking People</a>
+                    <a class="scene3-choice-btn" href="?scene=8" target="_self">Bringing Home</a>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        render_narration(3)
+    else:
+        st.warning(f"Image not found: {SCENE_IMAGES[3]}")
+elif current_scene in ENDING_SCENES:
+    render_static_scene(current_scene)
+    render_narration(current_scene)
+else:
+    st.warning("Invalid scene configuration.")
