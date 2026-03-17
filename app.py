@@ -29,20 +29,20 @@ SCENE_IMAGES = {
 NEXT_SCENE = {
     1: 2,
     2: 3,
-    4: 5,
-    6: 7,
-    8: 9,
+    4: 7,
+    5: 8,
+    6: 9,
 }
 
 PREV_SCENE = {
     2: 1,
     3: 2,
     4: 3,
-    5: 4,
+    5: 3,
     6: 3,
-    7: 6,
-    8: 3,
-    9: 8,
+    7: 4,
+    8: 5,
+    9: 6,
 }
 
 ENDING_SCENES = {5, 7, 9}
@@ -245,6 +245,14 @@ def inject_page_style() -> None:
                 white-space: pre-wrap;
             }
 
+            .typing-click-blocker {
+                position: fixed;
+                inset: 0;
+                z-index: 60;
+                background: transparent;
+                pointer-events: auto;
+            }
+
             .st-key-back_btn {
                 position: fixed;
                 top: 12px;
@@ -381,10 +389,10 @@ def render_choice_buttons() -> None:
         set_scene(4)
         st.rerun()
     if st.button("Asking People", key="choice_2"):
-        set_scene(6)
+        set_scene(5)
         st.rerun()
     if st.button("Bringing Home", key="choice_3"):
-        set_scene(8)
+        set_scene(6)
         st.rerun()
 
 
@@ -435,6 +443,9 @@ def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
         )
         return
 
+    click_blocker = st.empty()
+    click_blocker.markdown('<div class="typing-click-blocker"></div>', unsafe_allow_html=True)
+
     current = ""
     for char in line_text:
         current += char
@@ -444,6 +455,7 @@ def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
         )
         time.sleep(char_delay)
 
+    click_blocker.empty()
     st.session_state[typed_key] = True
 
 inject_page_style()
