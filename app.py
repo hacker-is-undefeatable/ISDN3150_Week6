@@ -1,6 +1,7 @@
 from pathlib import Path
 import base64
 import time
+import html
 
 import streamlit as st
 
@@ -145,14 +146,6 @@ def inject_page_style() -> None:
                 object-fit: cover;
                 display: block;
             }
-            .scene-click-area {
-                position: absolute;
-                inset: 0;
-                display: block;
-                z-index: 3;
-                text-decoration: none;
-                color: transparent;
-            }
             .center-choice-panel {
                 position: absolute;
                 top: 50%;
@@ -252,6 +245,68 @@ def inject_page_style() -> None:
                 white-space: pre-wrap;
             }
 
+            .st-key-back_btn {
+                position: fixed;
+                top: 12px;
+                left: 12px;
+                z-index: 45;
+                width: 34px;
+            }
+            .st-key-back_btn div[data-testid="stButton"] > button {
+                width: 34px;
+                height: 34px;
+                min-height: 34px;
+                padding: 0;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 700;
+                color: #1f2937;
+            }
+
+            .st-key-next_overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 30;
+            }
+            .st-key-next_overlay div[data-testid="stButton"] > button {
+                width: 100vw;
+                height: 100vh;
+                min-height: 100vh;
+                opacity: 0;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: transparent;
+                padding: 0;
+                margin: 0;
+            }
+
+            .st-key-choice_1,
+            .st-key-choice_2,
+            .st-key-choice_3 {
+                position: fixed;
+                right: 4%;
+                width: min(280px, 34vw);
+                z-index: 41;
+            }
+            .st-key-choice_1 {
+                top: 38%;
+            }
+            .st-key-choice_2 {
+                top: 47%;
+            }
+            .st-key-choice_3 {
+                top: 56%;
+            }
+            .st-key-choice_1 div[data-testid="stButton"] > button,
+            .st-key-choice_2 div[data-testid="stButton"] > button,
+            .st-key-choice_3 div[data-testid="stButton"] > button {
+                width: min(280px, 34vw);
+                padding: 10px 16px;
+                font-size: 15px;
+                font-weight: 600;
+            }
+
             div.stButton > button {
                 background: linear-gradient(145deg, #d1d9e6, #ffffff);
                 border-radius: 12px;
@@ -285,52 +340,51 @@ def image_to_data_uri(local_image: Path) -> str:
 
 def set_scene(scene_id: int) -> None:
     st.session_state.scene = scene_id
-    st.query_params["scene"] = str(scene_id)
+    st.session_state.narration_index = 0
+    for key in list(st.session_state.keys()):
+        if key.startswith(f"typed_{scene_id}_"):
+            del st.session_state[key]
 
 
-def render_click_scene(scene_id: int, next_scene_id: int) -> None:
+def get_narration_index(scene_id: int) -> int:
+    lines = NARRATIONS.get(scene_id, [])
+    max_index = max(len(lines) - 1, 0)
+    return max(0, min(st.session_state.get("narration_index", 0), max_index))
+
+
+def render_scene_image(scene_id: int, show_end_overlay: bool = False) -> bool:
     local_image = image_path(SCENE_IMAGES[scene_id])
     if not local_image.exists():
         st.warning(f"Image not found: {SCENE_IMAGES[scene_id]}")
-        return
+        return False
 
     image_uri = image_to_data_uri(local_image)
+    end_overlay_html = '<div class="end-overlay">The End</div>' if show_end_overlay else ""
     st.markdown(
         f"""
         <div class="scene-image-wrap">
             <img src="{image_uri}" alt="Scene {scene_id}" />
-            <a
-                class="scene-click-area"
-                href="?scene={next_scene_id}"
-                target="_self"
-                rel="noopener noreferrer"
-                aria-label="Go to scene {next_scene_id}"
-            > </a>
+            {end_overlay_html}
         </div>
         """,
         unsafe_allow_html=True,
     )
+    return True
 
 
-def render_static_scene(scene_id: int) -> None:
-    local_image = image_path(SCENE_IMAGES[scene_id])
-    if not local_image.exists():
-        st.warning(f"Image not found: {SCENE_IMAGES[scene_id]}")
-        return
-
-    image_uri = image_to_data_uri(local_image)
+def render_choice_buttons() -> None:
     st.markdown(
-        f"""
-        <div class="scene-image-wrap">
-            <img src="{image_uri}" alt="Scene {scene_id}" />
-            <div class="end-overlay">The End</div>
-        </div>
-        """,
+        '<div class="scene3-choice-panel"><div class="choice-title">Choose your result</div></div>',
         unsafe_allow_html=True,
     )
-
-    if st.button("Restart story", key=f"restart_{scene_id}"):
-        set_scene(1)
+    if st.button("Posters", key="choice_1"):
+        set_scene(4)
+        st.rerun()
+    if st.button("Asking People", key="choice_2"):
+        set_scene(6)
+        st.rerun()
+    if st.button("Bringing Home", key="choice_3"):
+        set_scene(8)
         st.rerun()
 
 
@@ -339,51 +393,65 @@ def render_back_button(scene_id: int) -> None:
     if prev_scene_id is None:
         return
 
-    st.markdown(
-        f'<a class="back-button" href="?scene={prev_scene_id}" target="_self" aria-label="Back">&#9664;</a>',
-        unsafe_allow_html=True,
-    )
+    if st.button("◀", key="back_btn"):
+        set_scene(prev_scene_id)
+        st.rerun()
 
 
-def render_narration(scene_id: int, char_delay: float = 0.02, line_delay: float = 0.55) -> None:
+def go_next(scene_id: int) -> None:
+    lines = NARRATIONS.get(scene_id, [])
+    idx = get_narration_index(scene_id)
+
+    if idx < len(lines) - 1:
+        st.session_state.narration_index = idx + 1
+        st.rerun()
+
+    next_scene = NEXT_SCENE.get(scene_id)
+    if next_scene is not None:
+        set_scene(next_scene)
+        st.rerun()
+
+
+def render_continue_overlay(scene_id: int) -> None:
+    if st.button(" ", key="next_overlay"):
+        go_next(scene_id)
+        st.rerun()
+
+
+def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
     lines = NARRATIONS.get(scene_id, [])
     if not lines:
         return
 
+    line_index = get_narration_index(scene_id)
+    line_text = lines[line_index]
     placeholder = st.empty()
-    completed_lines = []
+    typed_key = f"typed_{scene_id}_{line_index}"
 
-    for line in lines:
-        current = ""
-        for char in line:
-            current += char
-            content = "\n\n".join(completed_lines + [current])
-            placeholder.markdown(
-                f'<div class="narration-box">{content}</div>',
-                unsafe_allow_html=True,
-            )
-            time.sleep(char_delay)
-
-        completed_lines.append(line)
-        content = "\n\n".join(completed_lines)
+    if st.session_state.get(typed_key, False):
         placeholder.markdown(
-            f'<div class="narration-box">{content}</div>',
+            f'<div class="narration-box">{html.escape(line_text)}</div>',
             unsafe_allow_html=True,
         )
-        time.sleep(line_delay)
+        return
+
+    current = ""
+    for char in line_text:
+        current += char
+        placeholder.markdown(
+            f'<div class="narration-box">{html.escape(current)}</div>',
+            unsafe_allow_html=True,
+        )
+        time.sleep(char_delay)
+
+    st.session_state[typed_key] = True
 
 inject_page_style()
 
-query_scene = st.query_params.get("scene", "1")
-try:
-    query_scene_int = int(query_scene)
-except (TypeError, ValueError):
-    query_scene_int = 1
-
 if "scene" not in st.session_state:
-    st.session_state.scene = query_scene_int
-else:
-    st.session_state.scene = query_scene_int
+    st.session_state.scene = 1
+if "narration_index" not in st.session_state:
+    st.session_state.narration_index = 0
 
 current_scene = st.session_state.scene
 
@@ -393,32 +461,32 @@ if current_scene not in SCENE_IMAGES:
     set_scene(1)
     st.rerun()
 
+line_index = get_narration_index(current_scene)
+last_index = len(NARRATIONS.get(current_scene, [])) - 1
+is_last_line = line_index >= last_index
+
 if current_scene in NEXT_SCENE:
-    render_click_scene(current_scene, NEXT_SCENE[current_scene])
-    render_narration(current_scene)
+    rendered = render_scene_image(current_scene)
+    if rendered:
+        render_narration(current_scene)
+        render_continue_overlay(current_scene)
 elif current_scene == 3:
-    local_image = image_path(SCENE_IMAGES[3])
-    if local_image.exists():
-        image_uri = image_to_data_uri(local_image)
-        st.markdown(
-            f"""
-            <div class="scene-image-wrap">
-                <img src="{image_uri}" alt="Scene 3" />
-                <div class="scene3-choice-panel">
-                    <div class="choice-title">Choose your result</div>
-                    <a class="scene3-choice-btn" href="?scene=4" target="_self">Posters</a>
-                    <a class="scene3-choice-btn" href="?scene=6" target="_self">Asking People</a>
-                    <a class="scene3-choice-btn" href="?scene=8" target="_self">Bringing Home</a>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    rendered = render_scene_image(3)
+    if rendered:
         render_narration(3)
-    else:
-        st.warning(f"Image not found: {SCENE_IMAGES[3]}")
+        if is_last_line:
+            render_choice_buttons()
+        else:
+            render_continue_overlay(3)
 elif current_scene in ENDING_SCENES:
-    render_static_scene(current_scene)
-    render_narration(current_scene)
+    rendered = render_scene_image(current_scene, show_end_overlay=is_last_line)
+    if rendered:
+        render_narration(current_scene)
+        if is_last_line:
+            if st.button("Restart story", key=f"restart_{current_scene}"):
+                set_scene(1)
+                st.rerun()
+        else:
+            render_continue_overlay(current_scene)
 else:
     st.warning("Invalid scene configuration.")
