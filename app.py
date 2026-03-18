@@ -45,7 +45,7 @@ PREV_SCENE = {
     9: 6,
 }
 
-ENDING_SCENES = {5, 7, 9}
+ENDING_SCENES = {7, 8, 9}
 
 NARRATIONS = {
     1: [
@@ -64,34 +64,34 @@ NARRATIONS = {
         "Helping it meant making a choice... and every choice felt important.",
     ],
     4: [
-        "She decided to search for its owner the old-fashioned way.",
-        "Each poster carried a small hope - that someone, somewhere, was looking for this cat.",
-        "The wind brushed against the paper, as if carrying her message through the streets.",
+        "She decided to leave a message behind, in case someone was searching.",
+        "Each poster she placed carried a quiet hope — that it would reach the right person.",
+        "She stepped back and looked at it, wondering if it would be enough.",
     ],
     5: [
-        "At last, someone recognized the cat.",
-        "The moment they reunited, everything felt right again.",
-        "She smiled quietly, knowing she had helped something find its way home.",
+        "She gathered her courage and began asking around, hoping someone might recognize the little cat.",
+        "Most people shook their heads, but each question felt like a step closer to an answer.",
+        "Just as doubt began to settle in, someone paused… and looked a little more closely.",
     ],
     6: [
-        "Maybe someone nearby had seen this cat before.",
-        "She asked around, one person at a time, holding onto a quiet hope.",
-        "Sometimes, help comes not from plans... but from people.",
+        "She couldn’t leave it behind, not like this.",
+        "Carefully, she brought the cat home, offering it a quiet place to rest.",
+        "For the first time, it relaxed — as if it finally felt safe.",
     ],
     7: [
-        "Kindness spreads faster than we think.",
-        "With a few conversations, the missing piece finally appeared.",
-        "Sometimes, it takes a community to bring a story to its ending.",
+        "A call came sooner than she expected.",
+        "When the owner arrived, the cat ran forward without hesitation.",
+        "Watching them reunite, she felt a quiet warmth, some goodbyes are also happy endings.",
     ],
     8: [
-        "For now, she chose to give it a safe place.",
-        "The small room felt warmer with the cat inside.",
-        "It was not a permanent answer... but it was enough for today.",
+        "One small conversation led to another, until the right person finally appeared.",
+        "The pieces came together, not by chance, but through the kindness of strangers.",
+        "In the end, it wasn’t just her who helped the cat — it was everyone.",
     ],
     9: [
-        "Days passed, and the cat never left her side.",
-        "Some bonds are not planned - they simply grow.",
-        "Maybe... this was where it was meant to be all along.",
+        "Days turned into something softer, something familiar.",
+        "The cat stayed, never straying far from her side.",
+        "Without realizing it, they had already become a part of each other’s lives.",
     ],
 }
 
@@ -152,7 +152,8 @@ def inject_page_style() -> None:
                 z-index: 90;
                 overflow: hidden;
                 background: #000;
-                pointer-events: auto;
+                pointer-events: none;
+                animation: scene-overlay-dismiss 0.01s linear 0.68s forwards;
             }
             .scene-transition-wrap img {
                 position: absolute;
@@ -182,6 +183,12 @@ def inject_page_style() -> None:
                 }
                 to {
                     opacity: 1;
+                }
+            }
+            @keyframes scene-overlay-dismiss {
+                to {
+                    opacity: 0;
+                    visibility: hidden;
                 }
             }
             .center-choice-panel {
@@ -339,7 +346,9 @@ def inject_page_style() -> None:
 
             .st-key-choice_1,
             .st-key-choice_2,
-            .st-key-choice_3 {
+            .st-key-choice_3,
+            .st-key-ending_try_other,
+            .st-key-ending_rewatch {
                 position: fixed;
                 right: 3.5%;
                 width: min(320px, 38vw);
@@ -354,9 +363,17 @@ def inject_page_style() -> None:
             .st-key-choice_3 {
                 top: 59%;
             }
+            .st-key-ending_try_other {
+                top: 49%;
+            }
+            .st-key-ending_rewatch {
+                top: 59%;
+            }
             .st-key-choice_1 div[data-testid="stButton"] > button,
             .st-key-choice_2 div[data-testid="stButton"] > button,
-            .st-key-choice_3 div[data-testid="stButton"] > button {
+            .st-key-choice_3 div[data-testid="stButton"] > button,
+            .st-key-ending_try_other div[data-testid="stButton"] > button,
+            .st-key-ending_rewatch div[data-testid="stButton"] > button {
                 width: min(320px, 38vw);
                 border-radius: 14px;
                 border: 1px solid rgba(255, 255, 255, 0.75);
@@ -374,7 +391,9 @@ def inject_page_style() -> None:
             }
             .st-key-choice_1 div[data-testid="stButton"] > button:hover,
             .st-key-choice_2 div[data-testid="stButton"] > button:hover,
-            .st-key-choice_3 div[data-testid="stButton"] > button:hover {
+            .st-key-choice_3 div[data-testid="stButton"] > button:hover,
+            .st-key-ending_try_other div[data-testid="stButton"] > button:hover,
+            .st-key-ending_rewatch div[data-testid="stButton"] > button:hover {
                 transform: translateY(-2px);
                 box-shadow:
                     0 13px 24px rgba(0, 0, 0, 0.28),
@@ -384,7 +403,9 @@ def inject_page_style() -> None:
             }
             .st-key-choice_1 div[data-testid="stButton"] > button:active,
             .st-key-choice_2 div[data-testid="stButton"] > button:active,
-            .st-key-choice_3 div[data-testid="stButton"] > button:active {
+            .st-key-choice_3 div[data-testid="stButton"] > button:active,
+            .st-key-ending_try_other div[data-testid="stButton"] > button:active,
+            .st-key-ending_rewatch div[data-testid="stButton"] > button:active {
                 transform: translateY(4px);
                 box-shadow:
                     0 4px 10px rgba(0, 0, 0, 0.26),
@@ -403,7 +424,9 @@ def inject_page_style() -> None:
                 }
                 .st-key-choice_1,
                 .st-key-choice_2,
-                .st-key-choice_3 {
+                .st-key-choice_3,
+                .st-key-ending_try_other,
+                .st-key-ending_rewatch {
                     left: 6%;
                     right: 6%;
                     width: auto;
@@ -420,9 +443,19 @@ def inject_page_style() -> None:
                     top: auto;
                     bottom: 13%;
                 }
+                .st-key-ending_try_other {
+                    top: auto;
+                    bottom: 22%;
+                }
+                .st-key-ending_rewatch {
+                    top: auto;
+                    bottom: 13%;
+                }
                 .st-key-choice_1 div[data-testid="stButton"] > button,
                 .st-key-choice_2 div[data-testid="stButton"] > button,
-                .st-key-choice_3 div[data-testid="stButton"] > button {
+                .st-key-choice_3 div[data-testid="stButton"] > button,
+                .st-key-ending_try_other div[data-testid="stButton"] > button,
+                .st-key-ending_rewatch div[data-testid="stButton"] > button {
                     width: 100%;
                 }
             }
@@ -468,29 +501,35 @@ def set_scene(scene_id: int) -> None:
 
 
 def start_scene_transition(target_scene_id: int) -> None:
-    if st.session_state.get("scene") == 3:
+    current_scene = st.session_state.get("scene", 1)
+    if current_scene == 3:
         st.session_state.scene3_choices_hidden = True
-    st.session_state.transition_from_scene = st.session_state.get("scene", 1)
+    st.session_state.transition_from_scene = current_scene
     st.session_state.transition_to_scene = target_scene_id
     st.session_state.transition_active = True
+    # Switch the logical scene immediately so reruns never flash the previous scene.
+    set_scene(target_scene_id)
 
 
-def render_scene_transition(duration: float = 0.68) -> bool:
+def render_scene_transition() -> None:
     if not st.session_state.get("transition_active", False):
-        return False
+        return
 
     from_scene = st.session_state.get("transition_from_scene")
     to_scene = st.session_state.get("transition_to_scene")
     if from_scene not in SCENE_IMAGES or to_scene not in SCENE_IMAGES:
         st.session_state.transition_active = False
-        return False
+        st.session_state.transition_from_scene = None
+        st.session_state.transition_to_scene = None
+        return
 
     from_image = image_path(SCENE_IMAGES[from_scene])
     to_image = image_path(SCENE_IMAGES[to_scene])
     if not from_image.exists() or not to_image.exists():
         st.session_state.transition_active = False
-        set_scene(to_scene)
-        st.rerun()
+        st.session_state.transition_from_scene = None
+        st.session_state.transition_to_scene = None
+        return
 
     from_uri = image_to_data_uri(from_image)
     to_uri = image_to_data_uri(to_image)
@@ -504,13 +543,33 @@ def render_scene_transition(duration: float = 0.68) -> bool:
         unsafe_allow_html=True,
     )
 
-    time.sleep(duration)
-    set_scene(to_scene)
+    # Keep transition overlay for this render only; avoid an extra rerun that can flash old UI.
     st.session_state.transition_active = False
     st.session_state.transition_from_scene = None
     st.session_state.transition_to_scene = None
-    st.rerun()
-    return True
+    return
+
+
+def hide_scene3_choice_ui_when_not_needed(scene_id: int) -> None:
+    if scene_id == 3:
+        return
+
+    st.markdown(
+        """
+        <style>
+            .scene3-choice-panel,
+            .st-key-choice_1,
+            .st-key-choice_2,
+            .st-key-choice_3 {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def get_narration_index(scene_id: int) -> int:
@@ -564,8 +623,7 @@ def render_choice_buttons() -> None:
                         ".scene3-choice-panel, .st-key-choice_1, .st-key-choice_2, .st-key-choice_3"
                     );
                     targets.forEach((node) => {
-                        node.style.transition = "opacity 90ms linear";
-                        node.style.opacity = "0";
+                        node.style.display = "none";
                         node.style.pointerEvents = "none";
                     });
                 });
@@ -585,6 +643,16 @@ def render_choice_buttons() -> None:
     if st.button("Bringing Home", key="choice_3"):
         st.session_state.scene3_choices_hidden = True
         start_scene_transition(6)
+        st.rerun()
+
+
+def render_ending_buttons() -> None:
+    if st.button("Try another ending", key="ending_try_other"):
+        start_scene_transition(3)
+        st.rerun()
+
+    if st.button("Re-watch", key="ending_rewatch"):
+        start_scene_transition(1)
         st.rerun()
 
 
@@ -669,10 +737,11 @@ if "transition_to_scene" not in st.session_state:
 if "scene3_choices_hidden" not in st.session_state:
     st.session_state.scene3_choices_hidden = st.session_state.scene != 3
 
-if render_scene_transition():
-    st.stop()
+render_scene_transition()
 
 current_scene = st.session_state.scene
+
+hide_scene3_choice_ui_when_not_needed(current_scene)
 
 render_back_button(current_scene)
 
@@ -702,9 +771,7 @@ elif current_scene in ENDING_SCENES:
     if rendered:
         render_narration(current_scene)
         if is_last_line:
-            if st.button("Restart story", key=f"restart_{current_scene}"):
-                set_scene(1)
-                st.rerun()
+            render_ending_buttons()
         else:
             render_continue_overlay(current_scene)
 else:
