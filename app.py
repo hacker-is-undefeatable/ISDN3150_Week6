@@ -146,6 +146,44 @@ def inject_page_style() -> None:
                 object-fit: cover;
                 display: block;
             }
+            .scene-transition-wrap {
+                position: fixed;
+                inset: 0;
+                z-index: 90;
+                overflow: hidden;
+                background: #000;
+                pointer-events: auto;
+            }
+            .scene-transition-wrap img {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .scene-transition-from {
+                animation: scene-fade-out 0.65s ease-in-out forwards;
+            }
+            .scene-transition-to {
+                opacity: 0;
+                animation: scene-fade-in 0.65s ease-in-out forwards;
+            }
+            @keyframes scene-fade-out {
+                from {
+                    opacity: 1;
+                }
+                to {
+                    opacity: 0;
+                }
+            }
+            @keyframes scene-fade-in {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
             .center-choice-panel {
                 position: absolute;
                 top: 50%;
@@ -423,9 +461,56 @@ def image_to_data_uri(local_image: Path) -> str:
 def set_scene(scene_id: int) -> None:
     st.session_state.scene = scene_id
     st.session_state.narration_index = 0
+    st.session_state.scene3_choices_hidden = scene_id != 3
     for key in list(st.session_state.keys()):
         if key.startswith(f"typed_{scene_id}_"):
             del st.session_state[key]
+
+
+def start_scene_transition(target_scene_id: int) -> None:
+    if st.session_state.get("scene") == 3:
+        st.session_state.scene3_choices_hidden = True
+    st.session_state.transition_from_scene = st.session_state.get("scene", 1)
+    st.session_state.transition_to_scene = target_scene_id
+    st.session_state.transition_active = True
+
+
+def render_scene_transition(duration: float = 0.68) -> bool:
+    if not st.session_state.get("transition_active", False):
+        return False
+
+    from_scene = st.session_state.get("transition_from_scene")
+    to_scene = st.session_state.get("transition_to_scene")
+    if from_scene not in SCENE_IMAGES or to_scene not in SCENE_IMAGES:
+        st.session_state.transition_active = False
+        return False
+
+    from_image = image_path(SCENE_IMAGES[from_scene])
+    to_image = image_path(SCENE_IMAGES[to_scene])
+    if not from_image.exists() or not to_image.exists():
+        st.session_state.transition_active = False
+        set_scene(to_scene)
+        st.rerun()
+
+    from_uri = image_to_data_uri(from_image)
+    to_uri = image_to_data_uri(to_image)
+    st.markdown(
+        f"""
+        <div class="scene-transition-wrap">
+            <img src="{from_uri}" alt="Scene {from_scene}" class="scene-transition-from" />
+            <img src="{to_uri}" alt="Scene {to_scene}" class="scene-transition-to" />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    time.sleep(duration)
+    set_scene(to_scene)
+    st.session_state.transition_active = False
+    st.session_state.transition_from_scene = None
+    st.session_state.transition_to_scene = None
+    st.rerun()
+    return True
 
 
 def get_narration_index(scene_id: int) -> int:
@@ -455,18 +540,51 @@ def render_scene_image(scene_id: int, show_end_overlay: bool = False) -> bool:
 
 
 def render_choice_buttons() -> None:
+    if st.session_state.get("scene3_choices_hidden", False):
+        return
+
     st.markdown(
         '<div class="scene3-choice-panel"><div class="choice-title">Choose your result</div></div>',
         unsafe_allow_html=True,
     )
+    st.markdown(
+        """
+        <script>
+            if (!window.scene3InstantHideBound) {
+                window.scene3InstantHideBound = true;
+                document.addEventListener("pointerdown", function (event) {
+                    const choiceButton = event.target.closest(
+                        ".st-key-choice_1 button, .st-key-choice_2 button, .st-key-choice_3 button"
+                    );
+                    if (!choiceButton) {
+                        return;
+                    }
+
+                    const targets = document.querySelectorAll(
+                        ".scene3-choice-panel, .st-key-choice_1, .st-key-choice_2, .st-key-choice_3"
+                    );
+                    targets.forEach((node) => {
+                        node.style.transition = "opacity 90ms linear";
+                        node.style.opacity = "0";
+                        node.style.pointerEvents = "none";
+                    });
+                });
+            }
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
     if st.button("Posters", key="choice_1"):
-        set_scene(4)
+        st.session_state.scene3_choices_hidden = True
+        start_scene_transition(4)
         st.rerun()
     if st.button("Asking People", key="choice_2"):
-        set_scene(5)
+        st.session_state.scene3_choices_hidden = True
+        start_scene_transition(5)
         st.rerun()
     if st.button("Bringing Home", key="choice_3"):
-        set_scene(6)
+        st.session_state.scene3_choices_hidden = True
+        start_scene_transition(6)
         st.rerun()
 
 
@@ -542,6 +660,17 @@ if "scene" not in st.session_state:
     st.session_state.scene = 1
 if "narration_index" not in st.session_state:
     st.session_state.narration_index = 0
+if "transition_active" not in st.session_state:
+    st.session_state.transition_active = False
+if "transition_from_scene" not in st.session_state:
+    st.session_state.transition_from_scene = None
+if "transition_to_scene" not in st.session_state:
+    st.session_state.transition_to_scene = None
+if "scene3_choices_hidden" not in st.session_state:
+    st.session_state.scene3_choices_hidden = st.session_state.scene != 3
+
+if render_scene_transition():
+    st.stop()
 
 current_scene = st.session_state.scene
 
