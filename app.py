@@ -572,6 +572,26 @@ def hide_scene3_choice_ui_when_not_needed(scene_id: int) -> None:
     )
 
 
+def hide_ending_buttons_when_not_needed(scene_id: int, is_last_line: bool) -> None:
+    if scene_id in ENDING_SCENES and is_last_line:
+        return
+
+    st.markdown(
+        """
+        <style>
+            .st-key-ending_try_other,
+            .st-key-ending_rewatch {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def get_narration_index(scene_id: int) -> int:
     lines = NARRATIONS.get(scene_id, [])
     max_index = max(len(lines) - 1, 0)
@@ -741,8 +761,6 @@ render_scene_transition()
 
 current_scene = st.session_state.scene
 
-hide_scene3_choice_ui_when_not_needed(current_scene)
-
 render_back_button(current_scene)
 
 if current_scene not in SCENE_IMAGES:
@@ -752,6 +770,9 @@ if current_scene not in SCENE_IMAGES:
 line_index = get_narration_index(current_scene)
 last_index = len(NARRATIONS.get(current_scene, [])) - 1
 is_last_line = line_index >= last_index
+
+hide_scene3_choice_ui_when_not_needed(current_scene)
+hide_ending_buttons_when_not_needed(current_scene, is_last_line)
 
 if current_scene in NEXT_SCENE:
     rendered = render_scene_image(current_scene)
