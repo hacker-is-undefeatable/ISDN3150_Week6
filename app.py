@@ -155,42 +155,29 @@ def inject_page_style() -> None:
                 z-index: 4;
             }
             .scene3-choice-panel {
-                position: absolute;
-                top: 50%;
-                right: 4%;
-                transform: translateY(-50%);
-                width: min(280px, 34vw);
-                z-index: 5;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
+                position: fixed;
+                right: 3.5%;
+                top: 28.5%;
+                width: min(320px, 38vw);
+                z-index: 41;
+                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.38);
+                background: linear-gradient(
+                    140deg,
+                    rgba(6, 27, 44, 0.62),
+                    rgba(0, 0, 0, 0.34)
+                );
+                backdrop-filter: blur(6px);
+                padding: 12px 14px;
             }
             .choice-title {
-                color: white;
+                color: #ffffff;
                 text-align: center;
-                font-size: 1.4rem;
-                margin-bottom: 1rem;
-                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
-            }
-            .scene3-choice-btn {
-                text-decoration: none;
-                text-align: center;
-                color: #1f2937;
-                font-weight: 600;
-                font-size: 15px;
-                background: linear-gradient(145deg, #d1d9e6, #ffffff);
-                border-radius: 12px;
-                box-shadow: 6px 6px 12px #b8c1cc, -6px -6px 12px #ffffff;
-                border: none;
-                padding: 10px 16px;
-                display: block;
-            }
-            .scene3-choice-btn:hover {
-                box-shadow: inset 4px 4px 8px #b8c1cc, inset -4px -4px 8px #ffffff;
-            }
-            .scene3-choice-btn:active {
-                transform: translateY(2px);
-                box-shadow: inset 6px 6px 10px #b8c1cc, inset -6px -6px 10px #ffffff;
+                font-size: clamp(1.02rem, 2.2vw, 1.2rem);
+                line-height: 1.3;
+                letter-spacing: 0.01em;
+                font-weight: 700;
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
             }
             .end-overlay {
                 position: absolute;
@@ -244,6 +231,29 @@ def inject_page_style() -> None:
                 pointer-events: none;
                 white-space: pre-wrap;
             }
+            .narration-box.ready::after {
+                content: "";
+                position: absolute;
+                right: 14px;
+                bottom: 12px;
+                width: 0;
+                height: 0;
+                border-left: 7px solid transparent;
+                border-right: 7px solid transparent;
+                border-top: 10px solid #ffffff;
+                animation: narration-caret-bob 0.9s ease-in-out infinite;
+            }
+            @keyframes narration-caret-bob {
+                0% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-5px);
+                }
+                100% {
+                    transform: translateY(0);
+                }
+            }
 
             .typing-click-blocker {
                 position: fixed;
@@ -293,26 +303,90 @@ def inject_page_style() -> None:
             .st-key-choice_2,
             .st-key-choice_3 {
                 position: fixed;
-                right: 4%;
-                width: min(280px, 34vw);
+                right: 3.5%;
+                width: min(320px, 38vw);
                 z-index: 41;
             }
             .st-key-choice_1 {
-                top: 38%;
+                top: 39%;
             }
             .st-key-choice_2 {
-                top: 47%;
+                top: 49%;
             }
             .st-key-choice_3 {
-                top: 56%;
+                top: 59%;
             }
             .st-key-choice_1 div[data-testid="stButton"] > button,
             .st-key-choice_2 div[data-testid="stButton"] > button,
             .st-key-choice_3 div[data-testid="stButton"] > button {
-                width: min(280px, 34vw);
-                padding: 10px 16px;
-                font-size: 15px;
-                font-weight: 600;
+                width: min(320px, 38vw);
+                border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.75);
+                background: rgba(255, 255, 255, 0.5);
+                color: #0f172a;
+                font-size: clamp(14px, 1.3vw, 16px);
+                font-weight: 700;
+                letter-spacing: 0.01em;
+                padding: 12px 16px;
+                box-shadow:
+                    0 10px 18px rgba(0, 0, 0, 0.24),
+                    0 3px 0 rgba(0, 0, 0, 0.22),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+                transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+            }
+            .st-key-choice_1 div[data-testid="stButton"] > button:hover,
+            .st-key-choice_2 div[data-testid="stButton"] > button:hover,
+            .st-key-choice_3 div[data-testid="stButton"] > button:hover {
+                transform: translateY(-2px);
+                box-shadow:
+                    0 13px 24px rgba(0, 0, 0, 0.28),
+                    0 4px 0 rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+                filter: brightness(1.04);
+            }
+            .st-key-choice_1 div[data-testid="stButton"] > button:active,
+            .st-key-choice_2 div[data-testid="stButton"] > button:active,
+            .st-key-choice_3 div[data-testid="stButton"] > button:active {
+                transform: translateY(4px);
+                box-shadow:
+                    0 4px 10px rgba(0, 0, 0, 0.26),
+                    0 1px 0 rgba(0, 0, 0, 0.24),
+                    inset 0 4px 10px rgba(255, 255, 255, 0.28),
+                    inset 0 -2px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            @media (max-width: 820px) {
+                .scene3-choice-panel {
+                    left: 6%;
+                    right: 6%;
+                    top: auto;
+                    bottom: 42%;
+                    width: auto;
+                }
+                .st-key-choice_1,
+                .st-key-choice_2,
+                .st-key-choice_3 {
+                    left: 6%;
+                    right: 6%;
+                    width: auto;
+                }
+                .st-key-choice_1 {
+                    top: auto;
+                    bottom: 31%;
+                }
+                .st-key-choice_2 {
+                    top: auto;
+                    bottom: 22%;
+                }
+                .st-key-choice_3 {
+                    top: auto;
+                    bottom: 13%;
+                }
+                .st-key-choice_1 div[data-testid="stButton"] > button,
+                .st-key-choice_2 div[data-testid="stButton"] > button,
+                .st-key-choice_3 div[data-testid="stButton"] > button {
+                    width: 100%;
+                }
             }
 
             div.stButton > button {
@@ -438,7 +512,7 @@ def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
 
     if st.session_state.get(typed_key, False):
         placeholder.markdown(
-            f'<div class="narration-box">{html.escape(line_text)}</div>',
+            f'<div class="narration-box ready">{html.escape(line_text)}</div>',
             unsafe_allow_html=True,
         )
         return
@@ -455,6 +529,10 @@ def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
         )
         time.sleep(char_delay)
 
+    placeholder.markdown(
+        f'<div class="narration-box ready">{html.escape(line_text)}</div>',
+        unsafe_allow_html=True,
+    )
     click_blocker.empty()
     st.session_state[typed_key] = True
 
