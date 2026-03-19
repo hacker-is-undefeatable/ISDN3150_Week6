@@ -2,8 +2,10 @@ from pathlib import Path
 import base64
 import time
 import html
+import json
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 st.set_page_config(
@@ -25,6 +27,8 @@ SCENE_IMAGES = {
     8: "8.jpeg",
     9: "9.jpeg",
 }
+
+START_SCENE_ID = 0
 
 NEXT_SCENE = {
     1: 2,
@@ -288,6 +292,42 @@ def inject_page_style() -> None:
                 border-top: 10px solid #ffffff;
                 animation: narration-caret-bob 0.9s ease-in-out infinite;
             }
+            .narration-voice-wrap {
+                position: fixed;
+                right: calc(4% + 10px);
+                bottom: 76px;
+                z-index: 36;
+                width: 44px;
+                height: 44px;
+            }
+            .narration-voice-wrap .narration-voice-btn {
+                width: 44px;
+                height: 44px;
+                min-height: 44px;
+                border-radius: 50%;
+                border: 1px solid rgba(255, 255, 255, 0.45);
+                background: rgba(12, 18, 30, 0.72);
+                color: #ffffff;
+                font-weight: 700;
+                font-size: 18px;
+                box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+                padding: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+            .narration-voice-wrap .narration-voice-btn:hover {
+                background: rgba(18, 26, 42, 0.84);
+            }
+            .narration-voice-wrap .narration-voice-btn:active {
+                transform: translateY(1px);
+            }
+            .narration-voice-wrap .narration-voice-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }
             @keyframes narration-caret-bob {
                 0% {
                     transform: translateY(0);
@@ -342,6 +382,36 @@ def inject_page_style() -> None:
                 background: transparent;
                 padding: 0;
                 margin: 0;
+            }
+
+            .st-key-start_story {
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 50;
+                width: min(260px, 68vw);
+            }
+            .st-key-start_story div[data-testid="stButton"] > button {
+                width: 100%;
+                min-height: 54px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.75);
+                background: rgba(255, 255, 255, 0.72);
+                color: #0f172a;
+                font-size: clamp(16px, 2.2vw, 20px);
+                font-weight: 800;
+                letter-spacing: 0.01em;
+                box-shadow:
+                    0 14px 26px rgba(0, 0, 0, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            }
+            .st-key-start_story div[data-testid="stButton"] > button:hover {
+                transform: translateY(-2px);
+                filter: brightness(1.03);
+            }
+            .st-key-start_story div[data-testid="stButton"] > button:active {
+                transform: translateY(1px);
             }
 
             .st-key-choice_1,
@@ -618,6 +688,27 @@ def render_scene_image(scene_id: int, show_end_overlay: bool = False) -> bool:
     return True
 
 
+def render_start_page() -> bool:
+    start_image = image_path("bg.jpg")
+    if not start_image.exists():
+        st.warning("Start page image not found: bg.jpg")
+        return False
+
+    image_uri = image_to_data_uri(start_image)
+    st.markdown(
+        f"""
+        <div class="scene-image-wrap">
+            <img src="{image_uri}" alt="Start page" />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Start", key="start_story"):
+        set_scene(1)
+        st.rerun()
+    return True
+
+
 def render_choice_buttons() -> None:
     if st.session_state.get("scene3_choices_hidden", False):
         return
@@ -652,15 +743,15 @@ def render_choice_buttons() -> None:
         """,
         unsafe_allow_html=True,
     )
-    if st.button("Posters", key="choice_1"):
+    if st.button("Put up posters", key="choice_1"):
         st.session_state.scene3_choices_hidden = True
         start_scene_transition(4)
         st.rerun()
-    if st.button("Asking People", key="choice_2"):
+    if st.button("Ask people nearby", key="choice_2"):
         st.session_state.scene3_choices_hidden = True
         start_scene_transition(5)
         st.rerun()
-    if st.button("Bringing Home", key="choice_3"):
+    if st.button("Bring the cat home", key="choice_3"):
         st.session_state.scene3_choices_hidden = True
         start_scene_transition(6)
         st.rerun()
@@ -706,6 +797,150 @@ def render_continue_overlay(scene_id: int) -> None:
         st.rerun()
 
 
+def render_narration_voice_button(scene_id: int) -> None:
+    lines = NARRATIONS.get(scene_id, [])
+    if not lines:
+        return
+
+    line_index = get_narration_index(scene_id)
+    line_text = lines[line_index]
+
+    st.markdown(
+        """
+        <div class="narration-voice-wrap">
+            <button id="narration-voice-btn" class="narration-voice-btn" type="button" aria-label="Play narration">&#128266;</button>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    voice_text_json = json.dumps(line_text)
+    components.html(
+        f"""
+        <script>
+            (function () {{
+                const doc = window.parent.document;
+                const parentWindow = window.parent;
+                const btn = doc.getElementById("narration-voice-btn");
+                if (!btn) {{
+                    return;
+                }}
+
+                btn.dataset.narrationText = {voice_text_json};
+
+                const setVoiceBusy = (busy) => {{
+                    parentWindow.__narrationVoiceBusy = busy;
+                    btn.disabled = busy;
+                    btn.innerHTML = busy ? "&#9203;" : "&#128266;";
+                    btn.setAttribute("aria-label", busy ? "Narration playing" : "Play narration");
+
+                    const lockTargets = doc.querySelectorAll(
+                        ".st-key-next_overlay, .st-key-back_btn, .st-key-choice_1, .st-key-choice_2, .st-key-choice_3, .st-key-ending_try_other, .st-key-ending_rewatch"
+                    );
+                    lockTargets.forEach((node) => {{
+                        node.style.pointerEvents = busy ? "none" : "auto";
+                    }});
+                }};
+
+                setVoiceBusy(Boolean(parentWindow.__narrationVoiceBusy));
+
+                if (btn.dataset.voiceBound === "1") {{
+                    return;
+                }}
+                btn.dataset.voiceBound = "1";
+
+                btn.addEventListener("click", function (event) {{
+                    event.preventDefault();
+                    if (parentWindow.__narrationVoiceBusy) {{
+                        return;
+                    }}
+
+                    const text = btn.dataset.narrationText || "";
+                    if (!text) {{
+                        return;
+                    }}
+
+                    setVoiceBusy(true);
+
+                    try {{
+                        const parentDoc = parentWindow.document;
+
+                        const ensurePuter = () => new Promise((resolve, reject) => {{
+                            if (parentWindow.puter && parentWindow.puter.ai && parentWindow.puter.ai.txt2speech) {{
+                                resolve();
+                                return;
+                            }}
+
+                            let script = parentDoc.getElementById("puter-js-v2");
+                            if (!script) {{
+                                script = parentDoc.createElement("script");
+                                script.id = "puter-js-v2";
+                                script.src = "https://js.puter.com/v2/";
+                                script.async = true;
+                                parentDoc.head.appendChild(script);
+                            }}
+
+                            script.addEventListener("load", () => resolve(), {{ once: true }});
+                            script.addEventListener(
+                                "error",
+                                () => reject(new Error("Failed to load Puter.js")),
+                                {{ once: true }}
+                            );
+                        }});
+
+                        ensurePuter()
+                            .then(() => parentWindow.puter.ai.txt2speech(text, {{
+                                voice: "Joanna",
+                                engine: "neural",
+                                language: "en-US"
+                            }}))
+                            .then((audio) => {{
+                                if (!audio || typeof audio.play !== "function") {{
+                                    throw new Error("Invalid audio object returned from Puter");
+                                }}
+
+                                const releaseVoice = () => {{
+                                    if (parentWindow.__narrationCurrentAudio === audio) {{
+                                        parentWindow.__narrationCurrentAudio = null;
+                                    }}
+                                    setVoiceBusy(false);
+                                }};
+
+                                parentWindow.__narrationCurrentAudio = audio;
+
+                                if (typeof audio.addEventListener === "function") {{
+                                    audio.addEventListener("ended", releaseVoice, {{ once: true }});
+                                    audio.addEventListener("error", releaseVoice, {{ once: true }});
+                                }} else {{
+                                    audio.onended = releaseVoice;
+                                    audio.onerror = releaseVoice;
+                                }}
+
+                                const playResult = audio.play();
+                                if (playResult && typeof playResult.catch === "function") {{
+                                    playResult.catch((playError) => {{
+                                        releaseVoice();
+                                        throw playError;
+                                    }});
+                                }}
+                            }})
+                            .catch((error) => {{
+                                setVoiceBusy(false);
+                                console.error("Puter narration voice playback failed", error);
+                            }});
+                    }} catch (error) {{
+                        setVoiceBusy(false);
+                        console.error("Narration voice playback failed", error);
+                    }}
+                }});
+            }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
     lines = NARRATIONS.get(scene_id, [])
     if not lines:
@@ -745,7 +980,7 @@ def render_narration(scene_id: int, char_delay: float = 0.02) -> None:
 inject_page_style()
 
 if "scene" not in st.session_state:
-    st.session_state.scene = 1
+    st.session_state.scene = START_SCENE_ID
 if "narration_index" not in st.session_state:
     st.session_state.narration_index = 0
 if "transition_active" not in st.session_state:
@@ -763,7 +998,7 @@ current_scene = st.session_state.scene
 
 render_back_button(current_scene)
 
-if current_scene not in SCENE_IMAGES:
+if current_scene != START_SCENE_ID and current_scene not in SCENE_IMAGES:
     set_scene(1)
     st.rerun()
 
@@ -774,15 +1009,19 @@ is_last_line = line_index >= last_index
 hide_scene3_choice_ui_when_not_needed(current_scene)
 hide_ending_buttons_when_not_needed(current_scene, is_last_line)
 
-if current_scene in NEXT_SCENE:
+if current_scene == START_SCENE_ID:
+    render_start_page()
+elif current_scene in NEXT_SCENE:
     rendered = render_scene_image(current_scene)
     if rendered:
         render_narration(current_scene)
+        render_narration_voice_button(current_scene)
         render_continue_overlay(current_scene)
 elif current_scene == 3:
     rendered = render_scene_image(3)
     if rendered:
         render_narration(3)
+        render_narration_voice_button(3)
         if is_last_line:
             render_choice_buttons()
         else:
@@ -791,6 +1030,7 @@ elif current_scene in ENDING_SCENES:
     rendered = render_scene_image(current_scene, show_end_overlay=is_last_line)
     if rendered:
         render_narration(current_scene)
+        render_narration_voice_button(current_scene)
         if is_last_line:
             render_ending_buttons()
         else:
